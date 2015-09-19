@@ -1,0 +1,117 @@
+---
+title: "Practical Machine Learning - Course Project"
+date: "September 19, 2015"
+output: html_document
+---
+
+## Introduction
+
+Using devices such as Jawbone Up, Nike FuelBand, and Fitbit it is now possible to collect a large amount of data about personal activity relatively inexpensively. These type of devices are part of the quantified self movement - a group of enthusiasts who take measurements about themselves regularly to improve their health, to find patterns in their behavior, or because they are tech geeks. One thing that people regularly do is quantify how much of a particular activity they do, but they rarely quantify how well they do it. In this project, the goal is to use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants. They were asked to perform barbell lifts correctly and incorrectly in 5 different ways. More information is available from the website here: http://groupware.les.inf.puc-rio.br/har (see the section on the Weight Lifting Exercise Dataset). 
+
+## Question
+
+**Can we accurately predict activity quality with activity monitors data?**
+
+## Input Data
+
+First, we load the training and test datasets into R. We also load the Caret package that will be used to build our model.
+
+```{r echo=FALSE, message=FALSE}
+library(caret)
+fulltrain <- read.csv("pml-training.csv")
+fulltest <- read.csv("pml-testing.csv")
+```
+
+We have about 160 variables and 20000 observations to train on. We will attempt to predict the activity quality on 20 observations.
+
+## Features
+
+The first 7 variables don't seem valuable for predicting how well the exercises were performed. We can remove them from the dataset.
+
+```{r}
+fulltrain <- fulltrain[, -(1:7)]
+fulltest <- fulltest[, -(1:7)]
+```
+
+We can also remove variables that are almost always NA and the variables with nearly zero variance.
+
+```{r}
+mostlyNA <- sapply(fulltrain, function(x) mean(is.na(x))) > 0.95
+fulltrain <- fulltrain[, mostlyNA==F]
+fulltest <- fulltest[, mostlyNA==F]
+
+nzv <- nearZeroVar(fulltrain)
+fulltrain <- fulltrain[, -nzv]
+fulltest <- fulltest[, -nzv]
+```
+
+## Model
+
+We are going to use the Caret package to help us build our model. First, we split the full training set into a smaller training set and a validation set (in order to do cross-validation). Caret will keep the class balance of the full training set.
+
+```{r}
+set.seed(123)
+inTrain <- createDataPartition(y=fulltrain$classe, p=0.7, list=F)
+training <- fulltrain[inTrain, ]
+validation <- fulltrain[-inTrain, ]
+```
+
+Random Forest being a popular and powerful algorithm, we are choosing it for our first model. We are performing a 3-fold cross-validation to select optimal tuning parameters for the model.
+
+```{r}
+# instruct train to use 3-fold CV to select optimal tuning parameters
+fitControl <- trainControl(method="cv", number=3, verboseIter=F)
+
+# fit model on training
+fit <- train(classe ~ ., data=training, method="rf", trControl=fitControl, allowParallel=TRUE)
+
+# print final model to see tuning parameters
+fit$finalModel
+```
+
+## Evaluation
+
+Let's see how this model does at predicting the labels ("classe") of the validation set. We can use the confusion matrix to display the performance.
+
+```{r}
+# use model to predict classe in validation set
+preds <- predict(fit, newdata=validation)
+
+# show confusion matrix to get estimate of out-of-sample error
+confusionMatrix(validation$classe, preds)
+```
+
+The accuracy of the model on the validation set is 99.25%, thus we can estimate the out-of-sample error to be about 0.75%.
+
+This is an excellent result, so we will directly use this model to produce the predictions required for this project.
+
+## Submission
+
+Now that we are satisfied with our model, we should fit it to the full training set, and then predict on the full test set, creating 20 individual files for submission on Coursera.
+
+```{r}
+# re-fit model using full training set
+fit <- train(classe ~ ., data=fulltrain, method="rf", trControl=fitControl, allowParallel=TRUE)
+
+# predict on test set
+preds <- predict(fit, newdata=fulltest)
+
+# convert predictions to character vector
+preds <- as.character(preds)
+
+# create function to write predictions to files
+pml_write_files <- function(x) {
+    n <- length(x)
+    for(i in 1:n) {
+        filename <- paste0("problem_id_", i, ".txt")
+        write.table(x[i], file=filename, quote=F, row.names=F, col.names=F)
+    }
+}
+
+# create prediction files to submit
+pml_write_files(preds)
+```
+
+## Conclusion
+
+We have built a model to predict exercise quality based on movement data. We estimate the out of sample error of this algorithm to be .2%. This is a promising result regarding the use of machine learning to detect bad exercise quality. Is it the end of human coaching?
