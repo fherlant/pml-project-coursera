@@ -77,6 +77,9 @@ img {
 <div id="input-data" class="section level2">
 <h2>Input Data</h2>
 <p>First, we load the training and test datasets into R. We also load the Caret package that will be used to build our model.</p>
+<pre class="r"><code>library(caret)
+fulltrain &lt;- read.csv(&quot;pml-training.csv&quot;)
+fulltest &lt;- read.csv(&quot;pml-testing.csv&quot;)</code></pre>
 <p>We have about 160 variables and 20000 observations to train on. We will attempt to predict the activity quality on 20 observations.</p>
 </div>
 <div id="features" class="section level2">

@@ -16,7 +16,7 @@ Using devices such as Jawbone Up, Nike FuelBand, and Fitbit it is now possible t
 
 First, we load the training and test datasets into R. We also load the Caret package that will be used to build our model.
 
-```{r echo=FALSE, message=FALSE}
+```{r message=FALSE}
 library(caret)
 fulltrain <- read.csv("pml-training.csv")
 fulltest <- read.csv("pml-testing.csv")
